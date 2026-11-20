@@ -1,0 +1,4 @@
+<%# locals: () %>
+<%# After the portal footer's "Send a request": the address requests can be emailed to. %>
+<% address = Inbound::Setting.requests_email %>
+<% if address.present? %>, or email <%= mail_to address %><% end %>

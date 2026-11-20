@@ -1,0 +1,70 @@
+<% @page_title = "Requests by email" %>
+<%= render "settings/header", current: :inbound %>
+
+<div class="settings-page">
+  <section class="settings-section" id="requests_address">
+    <header class="settings-section__head">
+      <h2><%= term(:client, count: 2) %> email requests</h2>
+      <p class="settings-section__description">
+        Mail sent to this address becomes a request in Intake (work nobody has taken on yet): the subject is its title, the message its description (without the quoted mail and signature), and attachments its documents.
+        A known contact gets a short reply saying it came in; a reply to that, or to any message in the thread, lands on the same request as a note.
+        The same message arriving twice makes one request. Automatic replies are ignored.
+      </p>
+    </header>
+    <%= form_with model: @setting, scope: :setting, url: inbound_email_requests_path, method: :patch, class: "settings-form" do |form| %>
+      <%= form.ui :field, :requests_email, label: "Requests address" do %>
+        <div class="settings-inline">
+          <%= form.email_field :requests_email, autocomplete: "off", placeholder: "requests@yourcompany.com" %>
+          <%= ui :button, type: :submit, content: "Save" %>
+        </div>
+      <% end %>
+    <% end %>
+  </section>
+
+  <section class="settings-section" id="requests_service">
+    <header class="settings-section__head">
+      <h2>How the mail gets here</h2>
+      <p class="settings-section__description">
+        Runwell can’t receive mail on its own: a service (Cloudflare Email Routing, Postmark, Mailgun, SendGrid) or your own mail server forwards the address here.
+      </p>
+    </header>
+
+    <% ingress = Inbound::Setting.ingress %>
+    <% if ingress %>
+      <p>
+        <%= ui :badge, variant: :success, content: "Receiving" %>
+        Mail comes in through <%= inbound_ingress_name(ingress) %>. Forward the requests address there, to:
+      </p>
+      <%= code_block inbound_ingress_url(ingress) %>
+      <p class="muted"><%= inbound_ingress_secret_hint(ingress) %></p>
+    <% else %>
+      <p>
+        <%= ui :badge, variant: :secondary, content: "Off" %>
+        Nothing is received yet. Choose the service below, or let a plugin set it up.
+      </p>
+    <% end %>
+
+    <%= plugin_slots(:email_inbound) %>
+
+    <% if Inbound::Setting.ingress_from_environment? %>
+      <p class="muted">The server’s INBOUND_EMAIL_INGRESS chooses the service.</p>
+    <% else %>
+      <%= form_with url: inbound_email_requests_service_path, method: :patch, scope: :service do |form| %>
+        <%= form.ui :field, :ingress, label: "Comes in through" do %>
+          <div class="settings-inline">
+            <%= form.select :ingress, [ [ "Nothing yet", "" ], [ "Relay (Cloudflare Email Routing, your mail server)", "relay" ], [ "Postmark", "postmark" ], [ "SendGrid", "sendgrid" ], [ "Mailgun", "mailgun" ], [ "Mandrill", "mandrill" ] ], { selected: @setting.ingress.to_s } %>
+            <%= ui :button, type: :submit, content: "Save" %>
+          </div>
+        <% end %>
+      <% end %>
+      <% if @setting.password.present? && !Inbound::Setting.password_from_environment? %>
+        <%= form_with model: @setting, scope: :setting, url: inbound_email_requests_path do |form| %>
+          <%= form.ui :field, :password, label: "Password" do %>
+            <%= secret_field form, :password, readonly: true %>
+            <ui-field-description data-slot="field-description">The service signs in with it as <code>actionmailbox</code>. It was made for this install; it isn’t shown anywhere else.</ui-field-description>
+          <% end %>
+        <% end %>
+      <% end %>
+    <% end %>
+  </section>
+</div>
